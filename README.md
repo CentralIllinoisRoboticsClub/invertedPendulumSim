@@ -2,7 +2,16 @@
 Simulation of an inverted pendulum controller
 
 ## Simulated Controller test
-Update si_gains.m with nonzero gains.  
+Create si_gains.m with nonzero gains. 
+Please do not share gains for now.   
+`Kp_pend = 0; % cmd_ticks / rad`  
+`Kd_pend = 0; % cmd_ticks / (rad/s)`  
+`Ki_pend = 0; % cmd_ticks / (rad*s)`  
+
+`Kp_cart = 0; % cmd_ticks / m`  
+`Kd_cart = 0; % cmd_ticks / (m/s)`  
+`Ki_cart = 0; % cmd_ticks / (m*s)`  
+
 Run simInvPendVoltControl.m  
 control input u = cmd
 
@@ -26,17 +35,18 @@ Add disturbance torque to the pendulum equation above
 
 `1/tau*(K*U-sX) - (Ip+mr^2)/(mr) * s^2*TH = g*TH - c/(mr)*s*TH`  
 
-`num_th = s*K`
+`num_th = s*K`  
 `den_th = (tau*s+1)*[(Ip+mr^2)/(mr)*s^2 + c/(mr)*s - g]`  
 `TH(s)/U(s) = num_th / den_th`  
 
 ## Linearized State Space
 (Using Matlab syntax to show column vectors)  
 `[xd; xdd; thd; thdd] = A*[x; xd; th; thd] + B*u`  
-```A = [0  1           0       0;```  
-```     0 -1/tau       0       0;```  
-```     0   0          0       1;```  
-```     0 -1/(L1*tau)  g/L1  -c/(m*r*L1)]```  
+
+`A = [0  1           0       0;`  
+`     0 -1/tau       0       0;`  
+`     0   0          0       1;`  
+`     0 -1/(L1*tau)  g/L1  -c/(m*r*L1)]`  
 
 `B = [0; K/tau; 0; K/(L1*tau)`  
 `L1 = (Ip+mr^2)/(mr)`  
