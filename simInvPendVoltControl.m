@@ -1,3 +1,6 @@
+close all
+clear
+clc
 %% System Model Parameters (consider moving inside InvPendVoltageInputODE.m)
 % physical properties
 g = 9.8; % gravity
@@ -12,6 +15,8 @@ c = 5e-4; % Nm/(rad/s), pendulum damping
 cart_vel_gain = 2.6*1e-3; % steady state cart velocity/cmd (meters/sec/cmd)
 tau_norm = 0.07; % sec, time constant for velocity step response to cmd
 tau_brake = 0.01; % used when u = cmd = 0, what about switching directions?
+
+dead_cmd = 50;
 
 %% System variables
 % x = cart x position, meters, positive right
@@ -36,14 +41,14 @@ cur_cmd = cmds(1);
 % ************************
 
 %% Plot settings
-animate = true; % animates the pendulum system in an x-y plot
+animate = false; % animates the pendulum system in an x-y plot
 plot_line_width = 2;
 tick_font = 18;
 label_font = 18;
 
 %% ************ Timing *************
 Ts = 0.02; %controller feedback loop
-totalTime = 10.0; % Total sim time (stopped early if control and |th| > thresh
+totalTime = 30.0; % Total sim time (stopped early if control and |th| > thresh
 dtSim = 0.01; % sim time step (<= Ts/2)
 
 
@@ -57,7 +62,8 @@ si_gains;
 % pendulum control
 des_theta = 0*pi/180;
 give_up_theta = 20*pi/180; % stop sim if |eth| > this
-max_ep_sum = 5*pi/180;
+max_ep_sum = 50*pi/180;
+counts_per_rad = 2400/(2*pi);
 
 % cart control
 des_x = 0;
@@ -85,12 +91,17 @@ th_all = [];
 thd_all = [];
 cmd_all = [];
 t_all = [];
+err_pend_all = [];
 t_prev = 0;
 
 tsim = (0:dtSim:Ts)'; %local time vector for ode solver
 for k = 1:round(totalTime/Ts)
   if(control)
-    u = control_cmd;
+    if(abs(control_cmd) > dead_cmd)
+      u = control_cmd;
+    else
+      u = sign(control_cmd)*dead_cmd;
+    end
   else
     tControl = k*Ts; % global time
     if(ind_cmd <= n_cmds)
@@ -123,12 +134,16 @@ for k = 1:round(totalTime/Ts)
   xd_all = [xd_all; xd];
   th_all = [th_all; th];
   thd_all = [thd_all; thd];
-  cmd_all = [cmd_all; tsim*0+u]; %tsim, tdebug
+  cmd_all = [cmd_all; tsim*0+u];
   
   % control
   if(control)
     % pendulum control
     error_pend = -(th(end) - des_theta);
+    % TODO: verify the quantization here. It was just assigning the sample and hold.
+    error_pend = round(error_pend*counts_per_rad)/counts_per_rad;
+    err_pend_all = [err_pend_all; tsim*0+error_pend_prev]; %Do NOT sample and hold error_pend back into the past here
+    
     derror_pend = (error_pend - error_pend_prev)/Ts;
     error_pendulum_sum = error_pend_sum + (error_pend*Ts);
     if(error_pendulum_sum > max_ep_sum)
@@ -166,6 +181,9 @@ for k = 1:round(totalTime/Ts)
       control_cmd = 0;
       break;
     end
+    
+  else
+    err_pend_all = [err_pend_all; tsim*0];
   end
   
 end
@@ -188,8 +206,7 @@ legend('xd mm/sec', 'cmd')
 
 ax(end+1) = subplot(3,1,3);
 plot(t_all,th_all*180/pi, 'linewidth',plot_line_width); hold on
-#plot([0,30],[-220,-220])
-#plot([0,30],[-140,-140])
+plot(t_all,-err_pend_all*180/pi, 'r', 'linewidth',plot_line_width);
 ylabel('th deg', 'fontsize',label_font)
 set(gca, "linewidth", plot_line_width, "fontsize", tick_font)
 linkaxes(ax,'x')
