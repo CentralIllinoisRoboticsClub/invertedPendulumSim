@@ -162,7 +162,7 @@ for k = 1:round(totalTime/Ts)
     elseif(control_cmd < -255)
       control_cmd = -255;
     end
-    if(abs(ep) > give_up_theta)
+    if(abs(error_pend) > give_up_theta)
       control_cmd = 0;
       break;
     end
