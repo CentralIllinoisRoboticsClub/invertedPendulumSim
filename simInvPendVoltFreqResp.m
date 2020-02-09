@@ -1,3 +1,6 @@
+close all
+clear
+clc
 %% System Model Parameters (consider moving inside InvPendVoltageInputODE.m)
 % physical properties
 g = 9.8; % gravity
@@ -34,16 +37,18 @@ label_font = 18;
 
 %% ************ Timing *************
 Ts = 0.01; %controller feedback loop, step time for input of freq responsne
-totalTime = 1.5; % Total sim time (stopped early if control and |th| > thresh
+totalTime = 2.5; % Total sim time (stopped early if control and |th| > thresh
 dtSim = 0.001; % sim time step (<= Ts/2)
 
 %% Testing freq responses
 tcmds = (0:Ts:totalTime);
-w = 2*(2*pi);
+w = 1*(2*pi);
 A = 128;
 cmds = A*cos(w*tcmds); % cmd (-255 to 255)
-Mratio = cart_vel_gain / sqrt(w^2 + tau_norm^2*w^4);
-phase = atan(1/(tau_norm*w));
+Mratio_x = cart_vel_gain / sqrt(w^2 + tau_norm^2*w^4);
+phase_x = -atan2(1,-tau_norm*w);
+Mratio_v = cart_vel_gain / sqrt(1 + tau_norm^2*w^2);
+phase_v = -atan2(1,tau_norm*w);
 
 ind_cmd = 1;
 n_cmds = length(cmds);
@@ -94,10 +99,45 @@ for k = 1:round(totalTime/Ts)
   xd_all = [xd_all; xd];
   th_all = [th_all; th];
   thd_all = [thd_all; thd];
-  cmd_all = [cmd_all; tsim*0+u]; %tsim, tdebug  
+  cmd_all = [cmd_all; tsim*0+u]; 
 end
 
-x_resp = -A*Mratio*cos(w*t_all + phase);
+x_resp = A*Mratio_x*cos(w*t_all + phase_x);
+v_resp = A*Mratio_v*cos(w*t_all + phase_v);
+
+% Find delta_tx, delta_tv
+[min_cmd,ind] = min(cmd_all);
+tmin_cmd = t_all(ind);
+[min_v, ind] = min(xd_all);
+tmin_v = t_all(ind);
+[min_x, ind] = min(x_all);
+tmin_x = t_all(ind);
+
+phase_v_meas = -(tmin_v - tmin_cmd)*w;
+while(phase_v_meas <= -2*pi)
+  phase_v_meas = phase_v_meas + 2*pi;
+end
+Mv_meas = min_v/min_cmd;
+tau_v_meas = 1/(w*tan(-phase_v_meas));
+
+phase_x_meas = -(tmin_x - tmin_cmd)*w;
+while(phase_x_meas <= -2*pi)
+  phase_x_meas = phase_x_meas + 2*pi;
+end
+Mx_meas = min_x/min_cmd;
+tau_x_meas = -1/(w*tan(-phase_x_meas));
+
+printf('tmin_cmd = %02f sec\n\n', tmin_cmd);
+
+printf('tmin_v = %02f sec\n', tmin_v);
+printf('phase_v = %0.1f deg\n', phase_v*180/pi);
+printf('phase_v_meas = %0.1f deg\n', phase_v_meas*180/pi);
+printf('tau_v_meas = %0.3f sec\n\n', tau_v_meas);
+
+printf('tmin_x = %02f sec\n', tmin_x);
+printf('phase_x = %0.1f deg\n', phase_x*180/pi);
+printf('phase_x_meas = %0.1f deg\n', phase_x_meas*180/pi);
+printf('tau_x_meas = %0.3f sec\n', tau_x_meas);
 
 hold off
 figure(1)
@@ -107,21 +147,24 @@ plot(t_all,x_all*1e3, 'linewidth',plot_line_width)
 hold on
 plot(t_all,x_resp*1e3, 'm', 'linewidth',plot_line_width)
 ylabel('x mm', 'fontsize',label_font)
+plot([tmin_x,tmin_x],[2*min_x,-2*min_x],'g', 'linewidth',plot_line_width)
 set(gca, "linewidth", plot_line_width, "fontsize", tick_font)
-legend('sim','AMcos(wt+phi)')
+legend('sim','AMxcos(wt+phix)')
 
 ax(end+1) = subplot(3,1,2);
 plot(t_all,xd_all*1e3, 'linewidth',plot_line_width)
 hold on
 plot(t_all,cmd_all,'r', 'linewidth',plot_line_width)
+plot(t_all,v_resp, 'm', 'linewidth',plot_line_width)
 ylabel('xd mm/sec', 'fontsize',label_font)
+plot([tmin_v,tmin_v],[2*min_v,-2*min_v],'g', 'linewidth',plot_line_width)
+plot([tmin_cmd,tmin_cmd],[2*min_cmd,-2*min_cmd],'c', 'linewidth',plot_line_width)
 set(gca, "linewidth", plot_line_width, "fontsize", tick_font)
-legend('xd mm/sec', 'cmd')
+legend('xd mm/sec', 'cmd', 'AMvcos(wt+phiv)')
 
 ax(end+1) = subplot(3,1,3);
 plot(t_all,th_all*180/pi, 'linewidth',plot_line_width); hold on
-#plot([0,30],[-220,-220])
-#plot([0,30],[-140,-140])
+
 ylabel('th deg', 'fontsize',label_font)
 set(gca, "linewidth", plot_line_width, "fontsize", tick_font)
 linkaxes(ax,'x')

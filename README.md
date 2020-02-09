@@ -55,3 +55,26 @@ This is for reference, not needed for control design.
 Possibly replace the ode solver with this.  
 `x(t) = K*u*t + (tau*v0 - K*u*tau)*(1-exp(-t/tau)) + x0`  
 `v(t) = K*u(1 - exp(-t/tau)) + v0*exp(-t/tau)`  
+
+## Frequency Response
+See simInvPendVoltFreqResp.m  
+Another way to solve for tau and K = vel_gain  
+input cmd = Acos(wt)  
+`x_resp = Mratio1*Acos(wt+phase1)`  
+Using H1(s) = X(s)/U(s):  
+`Mratio1 = mag(H1) = K / sqrt(w^2 + tau^2*w^4) = K/(w*sqrt(1+tau^2*w^2))`  
+`phase1 = atan2(0,K) - atan2(1,-tau*w)`  
+`tan(-phase1) = -1/tau/w`  
+`tau = -1/(w*tan(-phase2))`  
+
+Can also use H2(s) = V(s)/U(s) = K / (tau*s + 1)  
+`v_resp = Mratio2*Acos(wt+phase2)`  
+`Mratio2 = mag(H2) = K / sqrt(1 + tau^2*w^2)`  
+`phase2 = atan2(0,K) - atan2(1,tau*w)`  
+`tan(-phase2) = 1/tau/w`  
+`tau = 1/(w*tan(-phase2))`  
+
+Measure phase offset in sec, delta_t.  
+`period = 1/f =2*pi/w`  
+`|phase_angle| = 2*pi*delta_t/period`  
+`|phase_angle| = delta_t*w`  
